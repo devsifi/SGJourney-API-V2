@@ -1,5 +1,7 @@
 const express = require('express')
 const request = require('request-promise-native')
+const geolib = require('geolib')
+const _ = require('underscore')
 const router = express.Router()
 
 const headers = {
@@ -60,6 +62,56 @@ async function getBusRoutes() {
 
 router.get('/', (req, resp) => {
     resp.send('Welcome to SGJourney /bus API')
+})
+
+router.get('/nearby', async function(req, resp) {
+    const longitude = req.query.longitude
+    const latitude = req.query.latitude
+    const radius = req.query.radius || 500
+    if(longitude && latitude) {
+        const currentLocation = {
+            longitude: longitude,
+            latitude: latitude,
+        }
+
+        await getBusStops().then((busStops) => {
+            let results = busStops.filter(o => {
+                const stopLocation = {
+                    longitude: o.Longitude,
+                    latitude: o.Latitude
+                }
+    
+                return geolib.getDistance(currentLocation, stopLocation) <= radius
+            })
+            
+            results =_.sortBy(results, (o) => {
+    
+                const loc1 = {
+                    longitude: o.Longitude,
+                    latitude: o.Latitude
+                }
+
+                const dist = geolib.getDistance(currentLocation, loc1, 100, 2)
+                return dist
+            });
+
+            _.each(results, (o) => {
+                {
+    
+                    const loc1 = {
+                        longitude: o.Longitude,
+                        latitude: o.Latitude
+                    }
+        
+                    console.log(geolib.getDistance(currentLocation, loc1))
+                }
+            })
+
+            resp.send(results)
+        });   
+    } else {
+        resp.send([])
+    }
 })
 
 router.get('/arrival', async function(req, resp) {
