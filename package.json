@@ -4,6 +4,7 @@
   "description": "Proxy for LTA DataMall API for use in SGJourney (iOS and Android)",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "nodemon index.js"
   },
   "repository": {
