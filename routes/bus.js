@@ -21,7 +21,6 @@ router.get('/arrival', async function(req, resp) {
 
     console.log(options)
     console.log(process.env.DATAMALL_API_KEY)
-    console.log(process.env)
 
     if(results) {
         resp.send(results.Services)
