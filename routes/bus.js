@@ -1,6 +1,7 @@
 const express = require('express')
 const request = require('request-promise-native')
 const geolib = require('geolib')
+const cache = require('memory-cache')
 const _ = require('underscore')
 const router = express.Router()
 
@@ -10,25 +11,32 @@ const headers = {
 
 async function getBusStops() {
     let results = []
-    let skip = 0
 
-    let options = {
-        url: 'http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=' + (skip * 500),
-        headers: headers
-    }
+    if(!cache.get('bus_stops')) {
+        let skip = 0
 
-    let resp = JSON.parse(await request(options).catch(console.error))
-    while(resp.value.length != 0) {
-        results = results.concat(resp.value)
-        console.log(options)
-        
-        if(resp.value.length != 500) {
-            break;
-        } else {
-            skip++
-            options.url = 'http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=' + (skip * 500)
-            resp = JSON.parse(await request(options).catch(console.error))
+        let options = {
+            url: 'http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=' + (skip * 500),
+            headers: headers
         }
+
+        let resp = JSON.parse(await request(options).catch(console.error))
+        while(resp.value.length != 0) {
+            results = results.concat(resp.value)
+            console.log(options)
+            
+            if(resp.value.length != 500) {
+                break;
+            } else {
+                skip++
+                options.url = 'http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=' + (skip * 500)
+                resp = JSON.parse(await request(options).catch(console.error))
+            }
+        }
+
+        cache.put('bus_stops', results, 60 * 60 * 24 * 7)
+    } else {
+        results = cache.get('bus_stops')
     }
 
     return results;
@@ -36,25 +44,31 @@ async function getBusStops() {
 
 async function getBusRoutes() {
     let results = []
-    let skip = 0
 
-    let options = {
-        url: 'http://datamall2.mytransport.sg/ltaodataservice/BusRoutes?$skip=' + (skip * 500),
-        headers: headers
-    }
+    if(!cache.get('bus_routes')) {
+        let skip = 0
 
-    let resp = JSON.parse(await request(options).catch(console.error))
-    while(resp.value.length != 0) {
-        results = results.concat(resp.value)
-        console.log(options)
-        
-        if(resp.value.length != 500) {
-            break;
-        } else {
-            skip++
-            options.url = 'http://datamall2.mytransport.sg/ltaodataservice/BusRoutes?$skip=' + (skip * 500)
-            resp = JSON.parse(await request(options).catch(console.error))
+        let options = {
+            url: 'http://datamall2.mytransport.sg/ltaodataservice/BusRoutes?$skip=' + (skip * 500),
+            headers: headers
         }
+
+        let resp = JSON.parse(await request(options).catch(console.error))
+        while(resp.value.length != 0) {
+            results = results.concat(resp.value)
+            console.log(options)
+            
+            if(resp.value.length != 500) {
+                break;
+            } else {
+                skip++
+                options.url = 'http://datamall2.mytransport.sg/ltaodataservice/BusRoutes?$skip=' + (skip * 500)
+                resp = JSON.parse(await request(options).catch(console.error))
+            }
+        }
+        cache.put('bus_routes', results, 60 * 60 * 24 * 7)
+    } else {
+        results = cache.get('bus_routes')
     }
 
     return results;
@@ -97,13 +111,10 @@ router.get('/nearby', async function(req, resp) {
 
             _.each(results, (o) => {
                 {
-    
                     const loc1 = {
                         longitude: o.Longitude,
                         latitude: o.Latitude
                     }
-        
-                    console.log(geolib.getDistance(currentLocation, loc1))
                 }
             })
 
@@ -154,6 +165,28 @@ router.get('/stops', async function(req, resp) {
     }
 
     resp.status(200).send(results)
+})
+
+router.get('/routes', async function(req, resp) {
+    let search = req.query.service
+    let busRoutes = await getBusRoutes()
+
+    let results = busRoutes
+
+    if(search) {
+        results = results.filter(o => {
+            return o.ServiceNo == search
+        })
+
+        results = _.sortBy(results, (o) => {
+            return o.ServiceNo
+        })
+    } else {
+        results = []
+    }
+
+    console.log(results.length)
+    resp.send(results)
 })
 
 module.exports = router
